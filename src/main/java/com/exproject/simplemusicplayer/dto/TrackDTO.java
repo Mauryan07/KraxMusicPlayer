@@ -13,4 +13,6 @@ public class TrackDTO {
     private String duration;
     private String bitrate;
     private String filePath;
+    private byte[] imageData;
+    private String mimeType;
 }

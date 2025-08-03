@@ -23,8 +23,9 @@ public class TrackServiceImpl implements TrackService {
                 track.getTitle(),
                 track.getDuration(),
                 track.getBitrate(),
-                track.getFilePath()
-
+                track.getFilePath(),
+                track.getAlbum().getArtwork().getImageData(),
+                track.getAlbum().getArtwork().getMimeType()
         );
     }
 
@@ -35,6 +36,13 @@ public class TrackServiceImpl implements TrackService {
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<TrackDTO> listAllSongs() {
+        return trackRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+
 
 
 //    @Override

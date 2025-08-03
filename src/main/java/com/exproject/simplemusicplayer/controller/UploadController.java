@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/upload")
@@ -21,6 +22,6 @@ public class UploadController {
     @PostMapping
     public ResponseEntity<String> uploadFile(@RequestParam("files") List<MultipartFile> files) {
         storageService.store(files);
-        return ResponseEntity.ok("File uploaded and metadata saved.");
+        return ResponseEntity.ok("List of Added Files" + files.stream().map(MultipartFile::getOriginalFilename).collect(Collectors.joining()));
     }
 }
