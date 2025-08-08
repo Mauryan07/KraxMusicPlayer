@@ -169,7 +169,7 @@ public class StorageServiceImpl implements StorageService {
                                 .album(album)
                                 .build()));
 
-
+                trackRepository.save(track);
                 //
                 System.out.println("Title: " + title + " \nduration:" + duration + "\nartist:" + artist.getName() + "\nalbum: " + album.getName() + "\nBitrate: " + bitrate);
                 //

@@ -34,7 +34,7 @@ public class TrackController {
 
     //sending specific track
     @GetMapping("/track/{fileHash}/audio")
-    public void streamTrackAudio(@PathVariable String fileHash, HttpServletResponse response) throws IOException {
+    public void streamTrackAudio(@PathVariable String fileHash, HttpServletResponse response) {
         try {
             // Parse fileHash to long
             long hash = Long.parseLong(fileHash);
@@ -65,7 +65,7 @@ public class TrackController {
 
     //sending specific track artwork
     @GetMapping("/track/{fileHash}/artwork")
-    public void streamTrackArtwork(@PathVariable String fileHash, HttpServletResponse response) throws IOException {
+    public void streamTrackArtwork(@PathVariable String fileHash, HttpServletResponse response) {
         try {
             // Parse fileHash to long
             long hash = Long.parseLong(fileHash);
