@@ -175,7 +175,7 @@ public class StorageServiceImpl implements StorageService {
                 //
 
             } catch (Exception e) {
-                throw new RuntimeException("Failed to store file: " + file.getOriginalFilename(), e);
+                throw new RuntimeException("Failed to store file:  " + file.getOriginalFilename(), e);
             }
         }
     }

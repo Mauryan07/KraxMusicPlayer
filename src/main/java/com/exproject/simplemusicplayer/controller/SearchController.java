@@ -1,8 +1,8 @@
 package com.exproject.simplemusicplayer.controller;
 
 
+import com.exproject.simplemusicplayer.dto.AlbumDTO;
 import com.exproject.simplemusicplayer.dto.TrackDTO;
-import com.exproject.simplemusicplayer.model.Album;
 import com.exproject.simplemusicplayer.service.AlbumService;
 import com.exproject.simplemusicplayer.service.TrackService;
 import lombok.RequiredArgsConstructor;
@@ -18,14 +18,14 @@ public class SearchController {
     private final TrackService trackService;
     private final AlbumService albumService;
 
-    @GetMapping("/title/{title}")
-    public List<TrackDTO> searchTracks(@PathVariable String title) {
-        return (trackService.searchByTitle(title));
+    @GetMapping("/title")
+    public List<TrackDTO> searchTracks(@RequestParam String name) {
+        return (trackService.searchByTitle(name));
     }
 
-    @GetMapping("/album/{album}")
-    public List<Album> searchAlbums(@PathVariable String album) {
-        return (albumService.searchAlbums(album));
+    @GetMapping("/album")
+    public List<AlbumDTO> searchAlbums(@RequestParam String name) {
+        return (albumService.searchAlbums(name));
     }
 
 

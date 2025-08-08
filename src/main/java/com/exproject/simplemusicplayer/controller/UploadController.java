@@ -22,6 +22,6 @@ public class UploadController {
     @PostMapping
     public ResponseEntity<String> uploadFile(@RequestParam("files") List<MultipartFile> files) {
         storageService.store(files);
-        return ResponseEntity.ok("List of Added Files" + files.stream().map(MultipartFile::getOriginalFilename).collect(Collectors.joining()));
+        return ResponseEntity.ok("List of Added Files: " + files.stream().map(MultipartFile::getOriginalFilename).collect(Collectors.joining()));
     }
 }
