@@ -1,8 +1,9 @@
-package com.exproject.simplemusicplayer.service;
+package com.exproject.simplemusicplayer.service.impl;
 
 import com.exproject.simplemusicplayer.dto.AlbumDTO;
 import com.exproject.simplemusicplayer.model.Album;
 import com.exproject.simplemusicplayer.repository.AlbumRepository;
+import com.exproject.simplemusicplayer.service.AlbumService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
