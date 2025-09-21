@@ -1,6 +1,7 @@
 package com.exproject.simplemusicplayer.service.impl;
 
 import com.exproject.simplemusicplayer.dto.AlbumDTO;
+import com.exproject.simplemusicplayer.dto.ArtworkDTO;
 import com.exproject.simplemusicplayer.dto.TrackDTO;
 import com.exproject.simplemusicplayer.model.Album;
 import com.exproject.simplemusicplayer.repository.AlbumRepository;
@@ -18,10 +19,30 @@ public class AlbumServiceImpl implements AlbumService {
     private final AlbumRepository albumRepository;
 
     private AlbumDTO toDTO(Album album) {
+        // Convert Track entities to TrackDTO objects
+        List<TrackDTO> trackDTOs = album.getTracks().stream()
+                .map(track -> new TrackDTO(
+                        track.getFileHash(),
+                        track.getTitle(),
+                        track.getDuration(),
+                        track.getBitrate(),
+                        track.getFilePath()
+                ))
+                .collect(Collectors.toList());
+
+        // Convert Artwork entity to ArtworkDTO
+        ArtworkDTO artworkDTO = null;
+        if (album.getArtwork() != null) {
+            artworkDTO = new ArtworkDTO(
+                    album.getArtwork().getImageData(),
+                    album.getArtwork().getMimeType()
+            );
+        }
+
         return new AlbumDTO(
                 album.getName(),
-                new ArrayList<TrackDTO>(album.getTracks()),
-                album.getArtwork()
+                trackDTOs,
+                artworkDTO
         );
     }
 

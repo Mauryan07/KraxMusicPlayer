@@ -86,19 +86,4 @@ public class TrackServiceImpl implements TrackService {
     }
 
 
-//    @Override
-//    public List<TrackDTO> searchByAlbum(String albumTitle) {
-//        return trackRepository.findByAlbumTitleContainingIgnoreCase(albumTitle)
-//                .stream()
-//                .map(this::toDTO)
-//                .collect(Collectors.toList());
-//    }
-//
-//    @Override
-//    public List<TrackDTO> searchByKeyword(String keyword) {
-//        return trackRepository.searchByKeyword(keyword)
-//                .stream()
-//                .map(this::toDTO)
-//                .collect(Collectors.toList());
-//    }
 }
