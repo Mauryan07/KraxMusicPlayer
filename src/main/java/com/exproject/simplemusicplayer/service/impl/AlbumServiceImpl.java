@@ -1,12 +1,14 @@
 package com.exproject.simplemusicplayer.service.impl;
 
 import com.exproject.simplemusicplayer.dto.AlbumDTO;
+import com.exproject.simplemusicplayer.dto.TrackDTO;
 import com.exproject.simplemusicplayer.model.Album;
 import com.exproject.simplemusicplayer.repository.AlbumRepository;
 import com.exproject.simplemusicplayer.service.AlbumService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,7 +20,7 @@ public class AlbumServiceImpl implements AlbumService {
     private AlbumDTO toDTO(Album album) {
         return new AlbumDTO(
                 album.getName(),
-                album.getTracks(),
+                new ArrayList<TrackDTO>(album.getTracks()),
                 album.getArtwork()
         );
     }
