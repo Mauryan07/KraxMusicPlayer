@@ -3,13 +3,12 @@ package com.exproject.simplemusicplayer.service.impl;
 import com.exproject.simplemusicplayer.dto.AlbumDTO;
 import com.exproject.simplemusicplayer.dto.ArtworkDTO;
 import com.exproject.simplemusicplayer.dto.TrackDTO;
-import com.exproject.simplemusicplayer.model.Album;
+import com.exproject.simplemusicplayer.entity.Album;
 import com.exproject.simplemusicplayer.repository.AlbumRepository;
 import com.exproject.simplemusicplayer.service.AlbumService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 

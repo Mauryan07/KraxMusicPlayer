@@ -3,7 +3,7 @@ package com.exproject.simplemusicplayer.service.impl;
 
 import com.exproject.simplemusicplayer.dto.TrackDTO;
 import com.exproject.simplemusicplayer.dto.TrackWithArtworkDTO;
-import com.exproject.simplemusicplayer.model.Track;
+import com.exproject.simplemusicplayer.entity.Track;
 import com.exproject.simplemusicplayer.repository.TrackRepository;
 import com.exproject.simplemusicplayer.service.TrackService;
 import lombok.RequiredArgsConstructor;

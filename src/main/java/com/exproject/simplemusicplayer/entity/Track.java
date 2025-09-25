@@ -1,4 +1,4 @@
-package com.exproject.simplemusicplayer.model;
+package com.exproject.simplemusicplayer.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

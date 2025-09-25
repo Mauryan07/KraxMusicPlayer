@@ -1,10 +1,10 @@
 package com.exproject.simplemusicplayer.service.impl;
 
 
-import com.exproject.simplemusicplayer.model.Album;
-import com.exproject.simplemusicplayer.model.Artist;
-import com.exproject.simplemusicplayer.model.Martwork;
-import com.exproject.simplemusicplayer.model.Track;
+import com.exproject.simplemusicplayer.entity.Album;
+import com.exproject.simplemusicplayer.entity.Artist;
+import com.exproject.simplemusicplayer.entity.Martwork;
+import com.exproject.simplemusicplayer.entity.Track;
 import com.exproject.simplemusicplayer.repository.AlbumRepository;
 import com.exproject.simplemusicplayer.repository.ArtistRepository;
 import com.exproject.simplemusicplayer.repository.ArtworkRepository;
