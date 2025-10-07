@@ -13,7 +13,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/search")
-@CrossOrigin(origins = "http://localhost:5173,http://localhost:5174")
+@CrossOrigin(origins = "*")
 public class SearchController {
 
     private final TrackService trackService;
