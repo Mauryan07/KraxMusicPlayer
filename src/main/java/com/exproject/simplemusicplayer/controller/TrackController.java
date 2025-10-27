@@ -94,6 +94,15 @@ public class TrackController {
         }
     }
 
+    //delete Api's
+
+    @DeleteMapping("/track/{fileHash}")
+    public void deleteTrack(@PathVariable String fileHash) {
+        if (fileHash != null) trackService.deleteTrackByFileHash(Long.parseLong(fileHash));
+    }
+
+
+
 
 
 

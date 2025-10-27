@@ -10,4 +10,6 @@ public interface TrackService {
     List<TrackDTO> listAllSongs();
 
     TrackServiceImpl.trackWithArtwork getTrackByFileHash(long fileHash);
+
+    void deleteTrackByFileHash(Long fileHash);
 }

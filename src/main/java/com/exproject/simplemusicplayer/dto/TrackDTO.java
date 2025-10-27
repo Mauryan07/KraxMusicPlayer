@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TrackDTO {
-    private String fileHash;
+    private long fileHash;
     private String title;
     private String duration;
     private String bitrate;

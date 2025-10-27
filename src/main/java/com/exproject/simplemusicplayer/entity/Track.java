@@ -11,7 +11,7 @@ import lombok.*;
 @Builder
 public class Track {
     @Id
-    private String fileHash;
+    private long fileHash;
     private String title;
     private String duration;
     private String filePath;
@@ -28,6 +28,4 @@ public class Track {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Artist artist;
-
-
 }

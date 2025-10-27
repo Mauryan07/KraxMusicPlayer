@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TrackWithArtworkDTO {
-    private String fileHash;
+    private long fileHash;
     private String title;
     private String duration;
     private String bitrate;

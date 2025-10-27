@@ -26,7 +26,6 @@ public class TrackServiceImpl implements TrackService {
     }
 
 
-
     private TrackDTO toDTO(Track track) {
         return new TrackDTO(
                 track.getFileHash(),
@@ -57,6 +56,7 @@ public class TrackServiceImpl implements TrackService {
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
+
     @Override
     public List<TrackDTO> listAllSongs() {
         return trackRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
@@ -84,6 +84,13 @@ public class TrackServiceImpl implements TrackService {
 
         return new trackWithArtwork(trackInfo, trackFile);
     }
+
+    @Override
+    public void deleteTrackByFileHash(Long fileHash) {
+        if (trackRepository.findById(fileHash).isPresent())
+            trackRepository.deleteById(fileHash);
+    }
+
 
 
 }
