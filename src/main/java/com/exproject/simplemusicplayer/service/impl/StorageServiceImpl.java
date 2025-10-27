@@ -100,7 +100,7 @@ public class StorageServiceImpl implements StorageService {
                 String title = fileNameWithoutExtension;    // tag.getFirst(FieldKey.ARTIST);
                 String duration = audioHeader.getTrackLengthAsString();
                 String bitrate = audioHeader.getBitRate();
-                String hashCode = "" + tag.hashCode();
+                long hashCode = (long) tag.hashCode();
 
 
                 // 3. Extract artist and album
