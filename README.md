@@ -1,9 +1,10 @@
 # KraxMusicPlayer (backend)
 
-Simple Java backend for a music player. Provides a REST API for playback, playlists and library management — any frontend can be used with it.
+Minimal Java Spring Boot backend for a music player. Exposes REST endpoints for playback, playlists and library management — any frontend can consume it.
 
 Prerequisites
-- Java 11+
+- JDK 21
+- Maven
 
 Quick start
 1. Clone
@@ -12,14 +13,13 @@ Quick start
 2. Build
    mvn clean package
 3. Run
-   java -jar build/libs/*.jar
+   mvn spring-boot:run
    or
    java -jar target/*.jar
-4. Open your frontend and point API requests to http://localhost:8080 (or the PORT you set).
+4. Default API base: http://localhost:8080 (set PORT in application.properties or via environment)
 
 Configuration
-- Configure via environment variables or application.properties as needed (PORT, DB connection, etc.).
+- Edit src/main/resources/application.properties or set environment variables (DB, PORT, etc.).
 
 Notes
-- This repository is the backend only — it exposes REST endpoints for any frontend to consume.
-- Keep the frontend separate; call the backend API endpoints to control playback and manage data.
+- This is backend-only (Spring Boot). Use any frontend to call its REST API.
