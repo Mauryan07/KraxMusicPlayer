@@ -5,7 +5,8 @@ import lombok.*;
 
 @Entity
 @Table(name = "tracks")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -19,13 +20,9 @@ public class Track {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "album_id")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private Album album;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_id")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private Artist artist;
 }
