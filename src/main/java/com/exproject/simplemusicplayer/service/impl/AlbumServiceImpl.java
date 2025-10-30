@@ -46,6 +46,11 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
+    public long getAlbumCount() {
+        return albumRepository.count();
+    }
+
+    @Override
     public List<AlbumDTO> searchAlbums(String album) {
         return albumRepository.findByNameContainingIgnoreCase(album)
                 .stream()

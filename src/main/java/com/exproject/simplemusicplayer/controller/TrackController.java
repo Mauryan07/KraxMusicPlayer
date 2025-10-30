@@ -7,6 +7,9 @@ import com.exproject.simplemusicplayer.service.TrackService;
 import com.exproject.simplemusicplayer.service.impl.TrackServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -21,11 +24,20 @@ public class TrackController {
     private final TrackService trackService;
     private final AlbumService albumService;
 
-    //listing all
+    //listing all in pages and sorting
     @GetMapping("/tracks")
+    public List<TrackDTO> listAllTracksPaged(@RequestParam("page") int page, @RequestParam("size") int size, @RequestParam("sortBy") String sortBy, @RequestParam("sortDir") String sortDir) {
+        Sort sort = Sort.by((sortDir.equalsIgnoreCase("asc")) ? Sort.Direction.ASC : Sort.Direction.DESC, sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return (trackService.listAllTracksInPages(pageable));
+    }
+
+    //list all songs using DTO
+    @GetMapping("/listTracks")
     public List<TrackDTO> listAllTracks() {
         return (trackService.listAllSongs());
     }
+
 
     @GetMapping("/albums")
     public List<AlbumDTO> listAllAlbums() {

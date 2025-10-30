@@ -7,6 +7,7 @@ import com.exproject.simplemusicplayer.entity.Track;
 import com.exproject.simplemusicplayer.repository.TrackRepository;
 import com.exproject.simplemusicplayer.service.TrackService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -50,6 +51,11 @@ public class TrackServiceImpl implements TrackService {
 
 
     @Override
+    public long getTrackCount() {
+        return trackRepository.count();
+    }
+
+    @Override
     public List<TrackDTO> searchByTitle(String title) {
         return trackRepository.findByTitleContainingIgnoreCase(title)
                 .stream()
@@ -91,6 +97,10 @@ public class TrackServiceImpl implements TrackService {
             trackRepository.deleteById(fileHash);
     }
 
+    @Override
+    public List<TrackDTO> listAllTracksInPages(Pageable pageable) {
+        return trackRepository.findAll(pageable).stream().map(this::toDTO).toList();
+    }
 
 
 }

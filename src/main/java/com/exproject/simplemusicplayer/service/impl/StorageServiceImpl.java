@@ -37,7 +37,7 @@ import java.util.Objects;
 public class StorageServiceImpl implements StorageService {
 
 
-    @Value("${file.storage.location}")
+    @Value("${track.storage.location}")
     private String storagePath;
 
     private final TrackRepository trackRepository;
@@ -102,10 +102,8 @@ public class StorageServiceImpl implements StorageService {
                 String bitrate = audioHeader.getBitRate();
                 long hashCode = (long) tag.hashCode();
 
-
                 // 3. Extract artist and album
-
-                //Read and add Artist and album name to there table
+                //Read and add Artist and album name to their table
                 String rawArtistName = tag.getFirst(FieldKey.ARTIST);
                 final String artistName = rawArtistName.isBlank() ? "Unknown Artist" : rawArtistName;
 
