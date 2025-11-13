@@ -1,6 +1,6 @@
 package com.exproject.simplemusicplayer.repository;
 
-import com.exproject.simplemusicplayer.entity.Artist;
+import com.exproject.simplemusicplayer.model.Artist;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

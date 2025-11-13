@@ -3,12 +3,16 @@ package com.exproject.simplemusicplayer.service.impl;
 
 import com.exproject.simplemusicplayer.dto.TrackDTO;
 import com.exproject.simplemusicplayer.dto.TrackWithArtworkDTO;
-import com.exproject.simplemusicplayer.entity.Track;
+import com.exproject.simplemusicplayer.model.Track;
+import com.exproject.simplemusicplayer.repository.AlbumRepository;
+import com.exproject.simplemusicplayer.repository.ArtistRepository;
+import com.exproject.simplemusicplayer.repository.ArtworkRepository;
 import com.exproject.simplemusicplayer.repository.TrackRepository;
 import com.exproject.simplemusicplayer.service.TrackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,6 +26,9 @@ import java.util.stream.Collectors;
 public class TrackServiceImpl implements TrackService {
 
     private final TrackRepository trackRepository;
+    private final AlbumRepository albumRepository;
+    private final ArtistRepository artistRepository;
+    private final ArtworkRepository artworkRepository;
 
     public record trackWithArtwork(TrackWithArtworkDTO trackInfo, byte[] trackFile) {
     }
@@ -91,15 +98,29 @@ public class TrackServiceImpl implements TrackService {
         return new trackWithArtwork(trackInfo, trackFile);
     }
 
+
+    @Override
+    public List<TrackDTO> listAllTracksInPages(Pageable pageable) {
+        return trackRepository.findAll(pageable).stream().map(this::toDTO).toList();
+    }
+
+    //Delete logic
+
     @Override
     public void deleteTrackByFileHash(Long fileHash) {
         if (trackRepository.findById(fileHash).isPresent())
             trackRepository.deleteById(fileHash);
     }
 
+
     @Override
-    public List<TrackDTO> listAllTracksInPages(Pageable pageable) {
-        return trackRepository.findAll(pageable).stream().map(this::toDTO).toList();
+    @Transactional
+    public boolean deleteAllTracks() {
+        albumRepository.deleteAllInBatch();
+        artistRepository.deleteAllInBatch();
+        artworkRepository.deleteAllInBatch();
+
+        return trackRepository.count() == 0 && albumRepository.count() == 0 && artistRepository.count() == 0 && artworkRepository.count() == 0;
     }
 
 

@@ -1,4 +1,4 @@
-package com.exproject.simplemusicplayer.entity;
+package com.exproject.simplemusicplayer.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -22,4 +22,8 @@ public class User {
     private String username;
     private String password;
     private List<String> role;
+
+    private List<Integer> favTracks;
+
+
 }

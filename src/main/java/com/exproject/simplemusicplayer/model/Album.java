@@ -1,4 +1,4 @@
-package com.exproject.simplemusicplayer.entity;
+package com.exproject.simplemusicplayer.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,17 +9,21 @@ import java.util.List;
 @Entity
 @Data
 @AllArgsConstructor
-@Table(name = "artists")
-@Builder
 @NoArgsConstructor
-public class Artist {
+@Table(name = "albums")
+@Builder
+public class Album {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String name;
 
-    @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+
+    @OneToMany(mappedBy = "album", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<Track> tracks;
+
+    @OneToOne(mappedBy = "album", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Martwork artwork;
 }

@@ -18,4 +18,6 @@ public interface TrackService {
     void deleteTrackByFileHash(Long fileHash);
 
     List<TrackDTO> listAllTracksInPages(Pageable pageable);
+
+    boolean deleteAllTracks();
 }

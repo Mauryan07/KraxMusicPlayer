@@ -2,6 +2,7 @@ package com.exproject.simplemusicplayer.controller;
 
 import com.exproject.simplemusicplayer.dto.AlbumDTO;
 import com.exproject.simplemusicplayer.dto.TrackDTO;
+import com.exproject.simplemusicplayer.responseMessage.ResponseMessage;
 import com.exproject.simplemusicplayer.service.AlbumService;
 import com.exproject.simplemusicplayer.service.TrackService;
 import com.exproject.simplemusicplayer.service.impl.TrackServiceImpl;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -37,7 +39,6 @@ public class TrackController {
     public List<TrackDTO> listAllTracks() {
         return (trackService.listAllSongs());
     }
-
 
     @GetMapping("/albums")
     public List<AlbumDTO> listAllAlbums() {
@@ -111,6 +112,17 @@ public class TrackController {
     @DeleteMapping("/track/{fileHash}")
     public void deleteTrack(@PathVariable String fileHash) {
         if (fileHash != null) trackService.deleteTrackByFileHash(Long.parseLong(fileHash));
+    }
+
+    @DeleteMapping("/track/deleteAll")
+    public ResponseEntity<ResponseMessage> deleteAllTracks() {
+        boolean status = trackService.deleteAllTracks();
+
+        if (status) {
+            return ResponseEntity.ok(ResponseMessage.builder().statusCode(HttpServletResponse.SC_ACCEPTED).message("Deleted All Songs from DB !!").build());
+        }
+
+        return ResponseEntity.status(HttpServletResponse.SC_EXPECTATION_FAILED).body(ResponseMessage.builder().message("Deletion Failed / DB is Empty").build());
     }
 
 

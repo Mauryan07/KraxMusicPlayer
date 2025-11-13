@@ -1,4 +1,4 @@
-package com.exproject.simplemusicplayer.entity;
+package com.exproject.simplemusicplayer.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,10 +15,8 @@ public class Martwork {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @OneToOne
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "album_id", unique = true)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private Album album;
 
     private byte[] imageData;

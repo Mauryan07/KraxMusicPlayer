@@ -3,7 +3,7 @@ package com.exproject.simplemusicplayer.service.impl;
 import com.exproject.simplemusicplayer.dto.AlbumDTO;
 import com.exproject.simplemusicplayer.dto.ArtworkDTO;
 import com.exproject.simplemusicplayer.dto.TrackDTO;
-import com.exproject.simplemusicplayer.entity.Album;
+import com.exproject.simplemusicplayer.model.Album;
 import com.exproject.simplemusicplayer.repository.AlbumRepository;
 import com.exproject.simplemusicplayer.service.AlbumService;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class AlbumServiceImpl implements AlbumService {
                 ))
                 .collect(Collectors.toList());
 
-        // Convert Artwork entity to ArtworkDTO
+        // Convert Artwork model to ArtworkDTO
         ArtworkDTO artworkDTO = null;
         if (album.getArtwork() != null) {
             artworkDTO = new ArtworkDTO(
