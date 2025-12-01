@@ -3,6 +3,7 @@ package com.exproject.simplemusicplayer.service.impl;
 
 import com.exproject.simplemusicplayer.dto.TrackDTO;
 import com.exproject.simplemusicplayer.dto.TrackWithArtworkDTO;
+import com.exproject.simplemusicplayer.model.Album;
 import com.exproject.simplemusicplayer.model.Track;
 import com.exproject.simplemusicplayer.repository.AlbumRepository;
 import com.exproject.simplemusicplayer.repository.ArtistRepository;
@@ -19,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -107,20 +109,65 @@ public class TrackServiceImpl implements TrackService {
     //Delete logic
 
     @Override
+    @Transactional
     public void deleteTrackByFileHash(Long fileHash) {
-        if (trackRepository.findById(fileHash).isPresent())
+        Optional<Track> trackOpt = trackRepository.findById(fileHash);
+        if (trackOpt.isPresent()) {
+            Track track = trackOpt.get();
+            String trackFilePath = track.getFilePath();
+            Album album = track.getAlbum();
+
+            // Delete the track file from the file system
+            try {
+                if (trackFilePath != null) {
+                    Files.deleteIfExists(Paths.get(trackFilePath));
+                }
+            } catch (IOException e) {
+                // Log and decide if you want to fail or proceed
+                System.err.println("Error deleting file from filesystem: " + trackFilePath);
+            }
+
+            // Remove track from DB
             trackRepository.deleteById(fileHash);
+
+            // Check if album now has 0 tracks. If so, delete the album and its artwork.
+            if (album != null) {
+                List<Track> remainingTracks = album.getTracks();
+                if (remainingTracks == null || remainingTracks.size() <= 1) { // this track is not yet gone from list
+                    // Delete artwork file (if artwork is headed by a path or needs removal from DB)
+                    if (album.getArtwork() != null) {
+                        // If artwork has a filepath, delete file:
+                        // String artworkPath = album.getArtwork().getFilePath();
+                        // if (artworkPath != null) Files.deleteIfExists(Paths.get(artworkPath));
+                        artworkRepository.delete(album.getArtwork());
+                    }
+                    // Delete album from DB
+                    albumRepository.delete(album);
+                }
+            }
+        }
     }
 
 
     @Override
     @Transactional
     public boolean deleteAllTracks() {
-        albumRepository.deleteAllInBatch();
-        artistRepository.deleteAllInBatch();
+        // Delete all tracks first (removes tracks referencing albums/artists)
+        trackRepository.deleteAllInBatch();
+
+        // Delete all artwork before albums
         artworkRepository.deleteAllInBatch();
 
-        return trackRepository.count() == 0 && albumRepository.count() == 0 && artistRepository.count() == 0 && artworkRepository.count() == 0;
+        // Now albums are no longer referenced, so you can safely delete
+        albumRepository.deleteAllInBatch();
+        artistRepository.deleteAllInBatch();
+
+        // Optionally: delete files from the file system here as well!
+
+        return trackRepository.count() == 0
+                && albumRepository.count() == 0
+                && artistRepository.count() == 0
+                && artworkRepository.count() == 0;
     }
 
 

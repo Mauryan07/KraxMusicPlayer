@@ -125,6 +125,12 @@ public class TrackController {
         return ResponseEntity.status(HttpServletResponse.SC_EXPECTATION_FAILED).body(ResponseMessage.builder().message("Deletion Failed / DB is Empty").build());
     }
 
+    @DeleteMapping("/album/{albumId}")
+    public ResponseEntity<?> deleteAlbum(@PathVariable Long albumId) {
+        albumService.deleteAlbum(albumId);
+        return ResponseEntity.ok().build();
+    }
+
 
 
 

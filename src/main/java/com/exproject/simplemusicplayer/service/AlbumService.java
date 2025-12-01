@@ -9,4 +9,6 @@ public interface AlbumService {
     List<AlbumDTO> searchAlbums(String album);
 
     List<AlbumDTO> listAllAlbums();
+
+    void deleteAlbum(Long albumId);
 }
