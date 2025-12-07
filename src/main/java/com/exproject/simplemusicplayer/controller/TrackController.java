@@ -12,6 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -109,11 +110,13 @@ public class TrackController {
 
     //delete Api's
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/track/{fileHash}")
     public void deleteTrack(@PathVariable String fileHash) {
         if (fileHash != null) trackService.deleteTrackByFileHash(Long.parseLong(fileHash));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/track/deleteAll")
     public ResponseEntity<ResponseMessage> deleteAllTracks() {
         boolean status = trackService.deleteAllTracks();
@@ -125,6 +128,7 @@ public class TrackController {
         return ResponseEntity.status(HttpServletResponse.SC_EXPECTATION_FAILED).body(ResponseMessage.builder().message("Deletion Failed / DB is Empty").build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/album/{albumId}")
     public ResponseEntity<?> deleteAlbum(@PathVariable Long albumId) {
         albumService.deleteAlbum(albumId);
