@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.exproject</groupId>
-    <artifactId>SimpleMusicPlayer</artifactId>
+    <artifactId>KraxMusicPlayer</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>SimpleMusicPlayer</name>
     <description>SimpleMusicPlayer</description>
