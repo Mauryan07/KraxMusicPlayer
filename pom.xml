@@ -11,7 +11,7 @@
     <groupId>com.exproject</groupId>
     <artifactId>KraxMusicPlayer</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>SimpleMusicPlayer</name>
+    <name>KraxMusicPlayer</name>
     <description>SimpleMusicPlayer</description>
     <url/>
     <licenses>

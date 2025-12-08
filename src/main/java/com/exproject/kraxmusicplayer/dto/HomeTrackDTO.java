@@ -2,16 +2,19 @@ package com.exproject.kraxmusicplayer.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * Lightweight track info used by the home UI (no binary artwork).
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class TrackDTO {
-    private long fileHash;
+public class HomeTrackDTO {
+    private Long fileHash;
     private String title;
     private String duration;
     private String bitrate;
-    private String filePath;
+    private String audioUrl;
+    private String artworkUrl;
 }
