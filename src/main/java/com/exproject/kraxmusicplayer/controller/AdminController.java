@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/admin")
+@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class AdminController {
     private final UserRepository userRepository;
