@@ -11,6 +11,7 @@ import com.exproject.kraxmusicplayer.repository.ArtworkRepository;
 import com.exproject.kraxmusicplayer.repository.TrackRepository;
 import com.exproject.kraxmusicplayer.service.TrackService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +61,7 @@ public class TrackServiceImpl implements TrackService {
 
 
     @Override
+    @Cacheable("trackCount")
     public long getTrackCount() {
         return trackRepository.count();
     }
@@ -102,6 +104,7 @@ public class TrackServiceImpl implements TrackService {
 
 
     @Override
+    @Cacheable("tracks")
     public List<TrackDTO> listAllTracksInPages(Pageable pageable) {
         return trackRepository.findAll(pageable).stream().map(this::toDTO).toList();
     }
@@ -168,6 +171,13 @@ public class TrackServiceImpl implements TrackService {
                 && albumRepository.count() == 0
                 && artistRepository.count() == 0
                 && artworkRepository.count() == 0;
+    }
+
+    @Override
+    public String getTrackFilePath(long fileHash) {
+        return trackRepository.findByFileHash(fileHash)
+                .map(Track::getFilePath)
+                .orElse(null);
     }
 
 

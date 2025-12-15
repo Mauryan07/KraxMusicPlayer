@@ -10,6 +10,7 @@ import com.exproject.kraxmusicplayer.repository.ArtworkRepository;
 import com.exproject.kraxmusicplayer.repository.TrackRepository;
 import com.exproject.kraxmusicplayer.service.AlbumService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +58,7 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
+    @Cacheable("albumCount")
     public long getAlbumCount() {
         return albumRepository.count();
     }
@@ -70,6 +72,7 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
+    @Cacheable("albums")
     public List<AlbumDTO> listAllAlbums() {
         return albumRepository.findAll().stream()
                 .map(this::toDTO)
@@ -110,7 +113,13 @@ public class AlbumServiceImpl implements AlbumService {
         }
     }
 
-
+    @Override
+    public AlbumDTO getAlbumByName(String name) {
+        return albumRepository.findByNameContainingIgnoreCase(name)
+                .stream()
+                .map(this::toDTO)
+                .findFirst().orElse(null);
+    }
 
 
 }

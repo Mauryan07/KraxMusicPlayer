@@ -20,4 +20,6 @@ public interface TrackService {
     List<TrackDTO> listAllTracksInPages(Pageable pageable);
 
     boolean deleteAllTracks();
+
+    String getTrackFilePath(long hash);
 }

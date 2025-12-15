@@ -8,15 +8,23 @@ import com.exproject.kraxmusicplayer.service.TrackService;
 import com.exproject.kraxmusicplayer.service.impl.TrackServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 @RestController
 @RequestMapping("/api")
@@ -27,7 +35,12 @@ public class TrackController {
     private final TrackService trackService;
     private final AlbumService albumService;
 
-    //listing all in pages and sorting
+    @Value("${track.storage.location}")
+    private String storagePath;
+
+    private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(".mp3", ".m4a");
+
+    // Listing all in pages and sorting
     @GetMapping("/tracks")
     public List<TrackDTO> listAllTracksPaged(
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -43,37 +56,52 @@ public class TrackController {
         return trackService.listAllTracksInPages(pageable);
     }
 
-    //list all songs using DTO
+    // List all songs using DTO
     @GetMapping("/listTracks")
     public List<TrackDTO> listAllTracks() {
-        return (trackService.listAllSongs());
+        return trackService.listAllSongs();
     }
 
     @GetMapping("/albums")
     public List<AlbumDTO> listAllAlbums() {
-        return (albumService.listAllAlbums());
+        return albumService.listAllAlbums();
     }
 
-    //sending specific track
+    @GetMapping("/album/{albumName}")
+    public AlbumDTO getAlbum(@PathVariable("albumName") String name) {
+
+        return albumService.getAlbumByName(name);
+    }
+
+
+    // Sending specific track audio
     @GetMapping("/track/{fileHash}/audio")
     public void streamTrackAudio(@PathVariable String fileHash, HttpServletResponse response) {
         try {
-            // Parse fileHash to long
             long hash = Long.parseLong(fileHash);
 
-            // Retrieve track data
             TrackServiceImpl.trackWithArtwork track = trackService.getTrackByFileHash(hash);
             if (track == null || track.trackFile() == null) {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
 
-            // Set response headers for audio
-            response.setContentType("audio/mpeg");
-            response.setHeader("Content-Disposition", "inline; filename=\"track.mp3\"");
+            // Determine content type based on file extension
+            String filePath = trackService.getTrackFilePath(hash);
+            String contentType = "audio/mpeg"; // Default to MP3
+
+            if (filePath != null) {
+                if (filePath.toLowerCase().endsWith(".m4a")) {
+                    contentType = "audio/mp4";
+                } else if (filePath.toLowerCase().endsWith(".mp3")) {
+                    contentType = "audio/mpeg";
+                }
+            }
+
+            response.setContentType(contentType);
+            response.setHeader("Content-Disposition", "inline; filename=\"track\"");
             response.setContentLength(track.trackFile().length);
 
-            // Write audio data to response
             response.getOutputStream().write(track.trackFile());
             response.getOutputStream().flush();
         } catch (NumberFormatException e) {
@@ -85,26 +113,22 @@ public class TrackController {
         }
     }
 
-    //sending specific track artwork
+    // Sending specific track artwork
     @GetMapping("/track/{fileHash}/artwork")
     public void streamTrackArtwork(@PathVariable String fileHash, HttpServletResponse response) {
         try {
-            // Parse fileHash to long
             long hash = Long.parseLong(fileHash);
 
-            // Retrieve track data
             TrackServiceImpl.trackWithArtwork track = trackService.getTrackByFileHash(hash);
             if (track == null || track.trackInfo() == null || track.trackInfo().getImageData() == null) {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
 
-            // Set response headers for artwork
             response.setContentType(track.trackInfo().getMimeType());
-            response.setHeader("Content-Disposition", "inline; filename=\"artwork.jpg\"");
+            response.setHeader("Content-Disposition", "inline; filename=\"artwork. jpg\"");
             response.setContentLength(track.trackInfo().getImageData().length);
 
-            // Write artwork data to response
             response.getOutputStream().write(track.trackInfo().getImageData());
             response.getOutputStream().flush();
         } catch (NumberFormatException e) {
@@ -116,12 +140,77 @@ public class TrackController {
         }
     }
 
-    //delete Api's
+    // Scan library for new files
+    @PostMapping("/track/scan")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ResponseMessage> scanLibrary() {
+        try {
+            Path storageDir = Paths.get(storagePath);
 
+            if (!Files.exists(storageDir)) {
+                return ResponseEntity.badRequest()
+                        .body(ResponseMessage.builder()
+                                .statusCode(HttpStatus.BAD_REQUEST.value())
+                                .message("Storage directory does not exist")
+                                .build());
+            }
+
+            // Use AtomicInteger for thread-safe counting in lambda
+            AtomicInteger scannedCount = new AtomicInteger(0);
+
+            try (Stream<Path> paths = Files.walk(storageDir)) {
+                paths.filter(Files::isRegularFile)
+                        .filter(this::isSupportedFile)
+                        .forEach(path -> {
+                            scannedCount.incrementAndGet();
+                            // Here you could add logic to check if file exists in DB
+                            // and add it if not
+                        });
+            }
+
+            return ResponseEntity.ok(ResponseMessage.builder()
+                    .statusCode(HttpStatus.OK.value())
+                    .message("Scan completed.  Found " + scannedCount.get() + " audio files.")
+                    .build());
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseMessage.builder()
+                            .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                            .message("Scan failed: " + e.getMessage())
+                            .build());
+        }
+    }
+
+    private boolean isSupportedFile(Path path) {
+        String fileName = path.getFileName().toString().toLowerCase();
+        return SUPPORTED_EXTENSIONS.stream().anyMatch(fileName::endsWith);
+    }
+
+    // Delete APIs
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/track/{fileHash}")
-    public void deleteTrack(@PathVariable String fileHash) {
-        if (fileHash != null) trackService.deleteTrackByFileHash(Long.parseLong(fileHash));
+    public ResponseEntity<ResponseMessage> deleteTrack(@PathVariable String fileHash) {
+        try {
+            if (fileHash != null) {
+                trackService.deleteTrackByFileHash(Long.parseLong(fileHash));
+                return ResponseEntity.ok(ResponseMessage.builder()
+                        .statusCode(HttpStatus.OK.value())
+                        .message("Track deleted successfully")
+                        .build());
+            }
+            return ResponseEntity.badRequest()
+                    .body(ResponseMessage.builder()
+                            .statusCode(HttpStatus.BAD_REQUEST.value())
+                            .message("Invalid file hash")
+                            .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseMessage.builder()
+                            .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                            .message("Delete failed: " + e.getMessage())
+                            .build());
+        }
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -130,25 +219,34 @@ public class TrackController {
         boolean status = trackService.deleteAllTracks();
 
         if (status) {
-            return ResponseEntity.ok(ResponseMessage.builder().statusCode(HttpServletResponse.SC_ACCEPTED).message("Deleted All Songs from DB !!").build());
+            return ResponseEntity.ok(ResponseMessage.builder()
+                    .statusCode(HttpServletResponse.SC_ACCEPTED)
+                    .message("Deleted all songs from library!")
+                    .build());
         }
 
-        return ResponseEntity.status(HttpServletResponse.SC_EXPECTATION_FAILED).body(ResponseMessage.builder().message("Deletion Failed / DB is Empty").build());
+        return ResponseEntity.status(HttpServletResponse.SC_EXPECTATION_FAILED)
+                .body(ResponseMessage.builder()
+                        .statusCode(HttpServletResponse.SC_EXPECTATION_FAILED)
+                        .message("Deletion failed or library is empty")
+                        .build());
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/album/{albumId}")
-    public ResponseEntity<?> deleteAlbum(@PathVariable Long albumId) {
-        albumService.deleteAlbum(albumId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<ResponseMessage> deleteAlbum(@PathVariable Long albumId) {
+        try {
+            albumService.deleteAlbum(albumId);
+            return ResponseEntity.ok(ResponseMessage.builder()
+                    .statusCode(HttpStatus.OK.value())
+                    .message("Album deleted successfully")
+                    .build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ResponseMessage.builder()
+                            .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                            .message("Delete failed: " + e.getMessage())
+                            .build());
+        }
     }
-
-
-
-
-
-
-
-
-
 }

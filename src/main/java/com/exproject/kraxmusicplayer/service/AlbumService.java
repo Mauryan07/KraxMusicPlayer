@@ -11,4 +11,6 @@ public interface AlbumService {
     List<AlbumDTO> listAllAlbums();
 
     void deleteAlbum(Long albumId);
+
+    AlbumDTO getAlbumByName(String name);
 }
