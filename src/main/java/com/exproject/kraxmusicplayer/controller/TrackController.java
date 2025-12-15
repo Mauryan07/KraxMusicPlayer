@@ -163,7 +163,7 @@ public class TrackController {
                         .filter(this::isSupportedFile)
                         .forEach(path -> {
                             scannedCount.incrementAndGet();
-                            // Here you could add logic to check if file exists in DB
+                            // add logic to check if file exists in DB
                             // and add it if not
                         });
             }

@@ -236,11 +236,7 @@ public class StorageServiceImpl implements StorageService {
         }
 
         // Check by MIME type
-        if (contentType != null && SUPPORTED_MIME_TYPES.contains(contentType.toLowerCase())) {
-            return true;
-        }
-
-        return false;
+        return contentType != null && SUPPORTED_MIME_TYPES.contains(contentType.toLowerCase());
     }
 
     /**

@@ -11,7 +11,6 @@ public interface TrackRepository extends JpaRepository<Track, Long> {
 
     List<Track> findByTitleContainingIgnoreCase(String title);
 
-    Optional<Track> findByTitleIgnoreCase(String title);
 
 
     Optional<Track> findByFileHash(long hashCode);
