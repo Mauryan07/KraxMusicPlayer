@@ -16,21 +16,17 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
 
-    // Ensure CustomUserDetailsService is a @Service bean in the context
     private final CustomUserDetailsService userDetailsService;
 
-    /**
-     * Configure SecurityFilterChain using non-deprecated, lambda-style APIs.
-     * We do not manually instantiate DaoAuthenticationProvider here — Spring will auto-configure
-     * a DaoAuthenticationProvider that uses the UserDetailsService and PasswordEncoder beans.
-     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Disable Spring Security CORS - we use our own filter
+                .cors(cors -> cors.disable())
+
                 .csrf(csrf -> csrf.disable())
 
                 .authorizeHttpRequests(authorize -> authorize
-                        // public routes (browsing & auth)
                         .requestMatchers(
                                 "/",
                                 "/home/**",
@@ -45,9 +41,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**"
                         ).permitAll()
-                        // explicitly allow GET streaming endpoints (single-segment fileHash)
                         .requestMatchers(HttpMethod.GET, "/api/track/*/audio", "/api/track/*/artwork").permitAll()
-                        // everything else requires authentication
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
                 )
 
@@ -58,10 +53,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Expose AuthenticationManager if programmatic access is required.
-     * Spring Boot will wire AuthenticationManager using available UserDetailsService + PasswordEncoder.
-     */
     @Bean
     public org.springframework.security.authentication.AuthenticationManager authenticationManager(
             AuthenticationConfiguration configuration) throws Exception {

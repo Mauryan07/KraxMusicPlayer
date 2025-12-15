@@ -96,7 +96,7 @@ public class HomeController {
         if (a.getTracks() != null && !a.getTracks().isEmpty()) {
             trackCount = a.getTracks().size();
             // artwork uses first track's fileHash endpoint
-            Long fileHash = a.getTracks().get(0).getFileHash();
+            Long fileHash = a.getTracks().getFirst().getFileHash();
             if (fileHash != null) {
                 artworkUrl = String.format("%s/api/track/%s/artwork", baseUrl, fileHash);
             }

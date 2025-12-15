@@ -29,10 +29,18 @@ public class TrackController {
 
     //listing all in pages and sorting
     @GetMapping("/tracks")
-    public List<TrackDTO> listAllTracksPaged(@RequestParam("page") int page, @RequestParam("size") int size, @RequestParam("sortBy") String sortBy, @RequestParam("sortDir") String sortDir) {
-        Sort sort = Sort.by((sortDir.equalsIgnoreCase("asc")) ? Sort.Direction.ASC : Sort.Direction.DESC, sortBy);
+    public List<TrackDTO> listAllTracksPaged(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @RequestParam(value = "sortBy", defaultValue = "title") String sortBy,
+            @RequestParam(value = "sortDir", defaultValue = "asc") String sortDir
+    ) {
+        Sort sort = Sort.by(
+                sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC,
+                sortBy
+        );
         Pageable pageable = PageRequest.of(page, size, sort);
-        return (trackService.listAllTracksInPages(pageable));
+        return trackService.listAllTracksInPages(pageable);
     }
 
     //list all songs using DTO
