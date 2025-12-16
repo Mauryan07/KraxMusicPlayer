@@ -1,6 +1,5 @@
 package com.exproject.kraxmusicplayer.service.impl;
 
-
 import com.exproject.kraxmusicplayer.dto.TrackDTO;
 import com.exproject.kraxmusicplayer.dto.TrackWithArtworkDTO;
 import com.exproject.kraxmusicplayer.model.Album;
@@ -11,7 +10,7 @@ import com.exproject.kraxmusicplayer.repository.ArtworkRepository;
 import com.exproject.kraxmusicplayer.repository.TrackRepository;
 import com.exproject.kraxmusicplayer.service.TrackService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Cacheable; // Ensure you have this import if using caching
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +35,6 @@ public class TrackServiceImpl implements TrackService {
     public record trackWithArtwork(TrackWithArtworkDTO trackInfo, byte[] trackFile) {
     }
 
-
     private TrackDTO toDTO(Track track) {
         return new TrackDTO(
                 track.getFileHash(),
@@ -48,20 +46,26 @@ public class TrackServiceImpl implements TrackService {
     }
 
     private TrackWithArtworkDTO toTWADTO(Track track) {
+        // Handle potential null album/artwork safely
+        byte[] imgData = null;
+        String mime = null;
+        if (track.getAlbum() != null && track.getAlbum().getArtwork() != null) {
+            imgData = track.getAlbum().getArtwork().getImageData();
+            mime = track.getAlbum().getArtwork().getMimeType();
+        }
+
         return new TrackWithArtworkDTO(
                 track.getFileHash(),
                 track.getTitle(),
                 track.getDuration(),
                 track.getBitrate(),
                 track.getFilePath(),
-                track.getAlbum().getArtwork().getImageData(),
-                track.getAlbum().getArtwork().getMimeType()
+                imgData,
+                mime
         );
     }
 
-
     @Override
-    @Cacheable("trackCount")
     public long getTrackCount() {
         return trackRepository.count();
     }
@@ -79,20 +83,24 @@ public class TrackServiceImpl implements TrackService {
         return trackRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    @Override
     public trackWithArtwork getTrackByFileHash(long fileHash) {
-        TrackWithArtworkDTO trackInfo = trackRepository.findById(fileHash).stream().map(this::toTWADTO).findFirst().orElse(null);
-        //getting file data from server file system
+        TrackWithArtworkDTO trackInfo = trackRepository.findById(fileHash)
+                .map(this::toTWADTO)
+                .orElse(null);
+
+        // Getting file data from server file system
         byte[] trackFile = null;
         if (trackInfo != null) {
             try {
                 Path filePath = Paths.get(trackInfo.getFilePath());
                 if (!Files.exists(filePath)) {
-                    System.out.printf("Audio file not found at: %s", filePath);
-                    throw new RuntimeException("Audio file not found at: " + filePath);
+                    System.out.printf("Audio file not found at: %s%n", filePath);
+                    // Depending on requirements, you might want to return null or throw exception
+                    // throw new RuntimeException("Audio file not found at: " + filePath);
+                } else {
+                    trackFile = Files.readAllBytes(filePath);
                 }
-                trackFile = Files.readAllBytes(filePath);
-
-
             } catch (IOException e) {
                 System.out.printf("Failed to read audio file for track: %s, error: %s%n", fileHash, e.getMessage());
                 throw new RuntimeException("Failed to read audio file for track: " + fileHash, e);
@@ -102,14 +110,14 @@ public class TrackServiceImpl implements TrackService {
         return new trackWithArtwork(trackInfo, trackFile);
     }
 
-
     @Override
-    @Cacheable("tracks")
     public List<TrackDTO> listAllTracksInPages(Pageable pageable) {
         return trackRepository.findAll(pageable).stream().map(this::toDTO).toList();
     }
 
-    //Delete logic
+    // ---------------------------------------------------------
+    // DELETE LOGIC
+    // ---------------------------------------------------------
 
     @Override
     @Transactional
@@ -120,57 +128,88 @@ public class TrackServiceImpl implements TrackService {
             String trackFilePath = track.getFilePath();
             Album album = track.getAlbum();
 
-            // Delete the track file from the file system
-            try {
-                if (trackFilePath != null) {
-                    Files.deleteIfExists(Paths.get(trackFilePath));
+            // 1. Delete the track file from the file system FIRST
+            if (trackFilePath != null) {
+                try {
+                    Path path = Paths.get(trackFilePath);
+                    boolean deleted = Files.deleteIfExists(path);
+                    if (deleted) {
+                        System.out.println("Deleted file: " + trackFilePath);
+                    } else {
+                        System.out.println("File not found (could not delete): " + trackFilePath);
+                    }
+                } catch (IOException e) {
+                    System.err.println("Error deleting file from filesystem: " + trackFilePath + " - " + e.getMessage());
+                    // Decide if you want to abort DB delete if file delete fails.
+                    // Usually, we proceed so the DB doesn't point to a phantom file,
+                    // or we throw to rollback if strict consistency is needed.
                 }
-            } catch (IOException e) {
-                // Log and decide if you want to fail or proceed
-                System.err.println("Error deleting file from filesystem: " + trackFilePath);
             }
 
-            // Remove track from DB
-            trackRepository.deleteById(fileHash);
+            // 2. Remove track from DB
+            trackRepository.delete(track);
+            // Flushing to ensure the track is removed from the persistence context
+            // before checking album contents might be necessary depending on JPA config,
+            // but usually the collection check below works on the in-memory entity state.
 
-            // Check if album now has 0 tracks. If so, delete the album and its artwork.
+            // 3. Clean up Album if it has no more tracks
             if (album != null) {
+                // The current track is likely still in the list in memory if not explicitly removed,
+                // so we check if size <= 1 (meaning this was the last one).
                 List<Track> remainingTracks = album.getTracks();
-                if (remainingTracks == null || remainingTracks.size() <= 1) { // this track is not yet gone from list
-                    // Delete artwork file (if artwork is headed by a path or needs removal from DB)
+
+                if (remainingTracks == null || remainingTracks.isEmpty() || (remainingTracks.contains(track) && remainingTracks.size() == 1)) {
+                    // Delete associated artwork from DB (Artwork is stored as BLOB, not file)
                     if (album.getArtwork() != null) {
-                        // If artwork has a filepath, delete file:
-                        // String artworkPath = album.getArtwork().getFilePath();
-                        // if (artworkPath != null) Files.deleteIfExists(Paths.get(artworkPath));
                         artworkRepository.delete(album.getArtwork());
                     }
                     // Delete album from DB
                     albumRepository.delete(album);
+                    System.out.println("Deleted empty album: " + album.getName());
                 }
             }
         }
     }
 
-
     @Override
     @Transactional
     public boolean deleteAllTracks() {
-        // Delete all tracks first (removes tracks referencing albums/artists)
-        trackRepository.deleteAllInBatch();
+        try {
+            // 1. Retrieve all tracks to get file paths
+            List<Track> allTracks = trackRepository.findAll();
 
-        // Delete all artwork before albums
-        artworkRepository.deleteAllInBatch();
+            // 2. Delete all physical files from storage
+            for (Track track : allTracks) {
+                String filePath = track.getFilePath();
+                if (filePath != null) {
+                    try {
+                        Files.deleteIfExists(Paths.get(filePath));
+                        System.out.println("Deleted file: " + filePath);
+                    } catch (IOException e) {
+                        System.err.println("Failed to delete file: " + filePath);
+                    }
+                }
+            }
 
-        // Now albums are no longer referenced, so you can safely delete
-        albumRepository.deleteAllInBatch();
-        artistRepository.deleteAllInBatch();
+            // 3. Delete from Database
+            // Delete tracks
+            trackRepository.deleteAllInBatch();
 
-        // Optionally: delete files from the file system here as well!
+            artworkRepository.deleteAllInBatch();
 
-        return trackRepository.count() == 0
-                && albumRepository.count() == 0
-                && artistRepository.count() == 0
-                && artworkRepository.count() == 0;
+            albumRepository.deleteAllInBatch();
+
+
+            artistRepository.deleteAllInBatch();
+
+            return trackRepository.count() == 0
+                    && albumRepository.count() == 0;
+
+        } catch (Exception e) {
+            System.err.println("Error during deleteAllTracks: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
@@ -179,6 +218,4 @@ public class TrackServiceImpl implements TrackService {
                 .map(Track::getFilePath)
                 .orElse(null);
     }
-
-
 }

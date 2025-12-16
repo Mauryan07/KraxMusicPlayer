@@ -58,7 +58,6 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
-    @Cacheable("albumCount")
     public long getAlbumCount() {
         return albumRepository.count();
     }
@@ -72,7 +71,6 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
-    @Cacheable("albums")
     public List<AlbumDTO> listAllAlbums() {
         return albumRepository.findAll().stream()
                 .map(this::toDTO)

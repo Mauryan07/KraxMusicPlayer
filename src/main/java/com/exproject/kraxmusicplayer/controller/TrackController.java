@@ -4,6 +4,7 @@ import com.exproject.kraxmusicplayer.dto.AlbumDTO;
 import com.exproject.kraxmusicplayer.dto.TrackDTO;
 import com.exproject.kraxmusicplayer.responseMessage.ResponseMessage;
 import com.exproject.kraxmusicplayer.service.AlbumService;
+import com.exproject.kraxmusicplayer.service.StorageService;
 import com.exproject.kraxmusicplayer.service.TrackService;
 import com.exproject.kraxmusicplayer.service.impl.TrackServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,6 +35,7 @@ public class TrackController {
 
     private final TrackService trackService;
     private final AlbumService albumService;
+    private final StorageService storageService;
 
     @Value("${track.storage.location}")
     private String storagePath;
@@ -163,14 +165,18 @@ public class TrackController {
                         .filter(this::isSupportedFile)
                         .forEach(path -> {
                             scannedCount.incrementAndGet();
-                            // add logic to check if file exists in DB
-                            // and add it if not
+                            // Process the file using the service logic
+                            try {
+                                storageService.processTrack(path);
+                            } catch (Exception e) {
+                                System.err.println("Error processing file during scan: " + path + " - " + e.getMessage());
+                            }
                         });
             }
 
             return ResponseEntity.ok(ResponseMessage.builder()
                     .statusCode(HttpStatus.OK.value())
-                    .message("Scan completed.  Found " + scannedCount.get() + " audio files.")
+                    .message("Scan completed. Processed " + scannedCount.get() + " audio files.")
                     .build());
 
         } catch (Exception e) {
@@ -186,6 +192,7 @@ public class TrackController {
         String fileName = path.getFileName().toString().toLowerCase();
         return SUPPORTED_EXTENSIONS.stream().anyMatch(fileName::endsWith);
     }
+
 
     // Delete APIs
     @PreAuthorize("hasRole('ADMIN')")
