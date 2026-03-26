@@ -34,7 +34,7 @@ public class DataInitializer {
                         .roles(Set.of(userRole, adminRole))
                         .build();
                 userRepository.save(admin);
-                System.out.println("Initial admin created: username=admin password=adminpass");
+                System.out.println("Initial admin created: username=admin password=admin");
             }
         };
     }
