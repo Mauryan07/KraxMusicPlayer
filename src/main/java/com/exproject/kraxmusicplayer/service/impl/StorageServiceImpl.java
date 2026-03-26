@@ -112,10 +112,18 @@ public class StorageServiceImpl implements StorageService {
             if (audioHeader == null) return null;
 
             // Metadata
-            String title = getFileNameWithoutExtension(fileName);
+            String title = tag.getFirst(FieldKey.TITLE); //getFileNameWithoutExtension(fileName);
             String duration = formatDuration(audioHeader.getTrackLength());
-            String bitrate = audioHeader.getBitRate();
-            long hashCode = generateHashCode(fileName, audioHeader);
+            String rawBitrate = audioHeader.getBitRate();
+            String bitrate = rawBitrate.replaceAll("[^0-9]", "");
+            String rawYear = tag.getFirst(FieldKey.YEAR);
+            String year = null;
+            if (rawYear != null) year = "Unknown";
+            if (rawYear != null && rawYear.length() >= 4) {
+                year = rawYear.substring(0, 4);
+            }
+            System.out.println("year: " + year);
+            long hashCode = Math.abs(generateHashCode(fileName, audioHeader));
 
             if (trackRepository.findByFileHash(hashCode).isPresent()) {
                 return null; // already stored
@@ -173,7 +181,7 @@ public class StorageServiceImpl implements StorageService {
             Path targetDir = Paths.get(storagePath, titleSlug);
 
             // Transcode to HLS asynchronously but wait with timeout to keep request bounded
-            Future<Path> fut = hlsExecutor.submit(() -> hlsTranscodeService.transcodeToHls(path, targetDir));
+            Future<Path> fut = hlsExecutor.submit(() -> hlsTranscodeService.transcodeToHls(path, targetDir, bitrate));
             Path playlistPath;
             try {
                 playlistPath = fut.get(timeoutSeconds, TimeUnit.SECONDS);
@@ -194,6 +202,7 @@ public class StorageServiceImpl implements StorageService {
                     .filePath(playlistPath.toAbsolutePath().toString()) // store playlist
                     .artist(artist)
                     .album(album)
+                    .year(year)
                     .build();
 
             trackRepository.save(track);

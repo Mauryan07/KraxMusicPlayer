@@ -15,6 +15,7 @@ public class HomeTrackDTO {
     private String title;
     private String duration;
     private String bitrate;
+    private String year;
     private String audioUrl;
     private String artworkUrl;
 }

@@ -37,6 +37,7 @@ public class AlbumServiceImpl implements AlbumService {
                         track.getTitle(),
                         track.getDuration(),
                         track.getBitrate(),
+                        track.getYear(),
                         track.getFilePath()
                 ))
                 .collect(Collectors.toList());

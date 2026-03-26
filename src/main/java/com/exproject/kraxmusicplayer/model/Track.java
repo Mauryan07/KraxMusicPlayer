@@ -23,6 +23,7 @@ public class Track {
     @Column(nullable = false, unique = true)
     private String filePath;
     private String bitrate;
+    private String year;
 
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "album_id")

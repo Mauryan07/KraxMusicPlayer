@@ -14,4 +14,6 @@ public class TrackDTO {
     private String duration;
     private String bitrate;
     private String filePath;
+    private String year;
+
 }

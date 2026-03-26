@@ -39,7 +39,8 @@ public class TrackServiceImpl implements TrackService {
                 track.getTitle(),
                 track.getDuration(),
                 track.getBitrate(),
-                track.getFilePath()
+                track.getFilePath(),
+                track.getYear()
         );
     }
 
@@ -56,9 +57,10 @@ public class TrackServiceImpl implements TrackService {
                 track.getTitle(),
                 track.getDuration(),
                 track.getBitrate(),
-                track.getFilePath(), // now playlist path
+                track.getFilePath(),
                 imgData,
-                mime
+                mime,
+                track.getYear()
         );
     }
 
@@ -97,82 +99,65 @@ public class TrackServiceImpl implements TrackService {
 
     // DELETE LOGIC (unchanged)
 
+    // TrackServiceImpl delete single
     @Override
     @Transactional
     public void deleteTrackByFileHash(Long fileHash) {
         trackRepository.findById(fileHash).ifPresent(track -> {
-            String playlistPath = track.getFilePath(); // points to playlist.m3u8
+            deleteHlsTree(track.getFilePath()); // delete playlist + segments + folder
+
             Album album = track.getAlbum();
-
-            // Delete HLS folder (playlist + segments)
-            if (playlistPath != null) {
-                Path playlist = Paths.get(playlistPath);
-                Path dir = playlist.getParent();
-                try {
-                    if (dir != null && Files.exists(dir)) {
-                        // delete all files in the HLS directory
-                        Files.list(dir).forEach(p -> {
-                            try { Files.deleteIfExists(p); } catch (IOException ignored) {}
-                        });
-                        Files.deleteIfExists(dir);
-                    } else {
-                        Files.deleteIfExists(playlist); // fallback
-                    }
-                } catch (IOException e) {
-                    System.err.println("Error deleting HLS files: " + e.getMessage());
-                }
-            }
-
-            // Remove track from DB
             trackRepository.delete(track);
 
-            // Clean up album if empty
             if (album != null) {
                 List<Track> remaining = album.getTracks();
                 if (remaining == null || remaining.isEmpty() || (remaining.contains(track) && remaining.size() == 1)) {
-                    if (album.getArtwork() != null) {
-                        artworkRepository.delete(album.getArtwork());
-                    }
+                    if (album.getArtwork() != null) artworkRepository.delete(album.getArtwork());
                     albumRepository.delete(album);
                 }
             }
         });
     }
 
+
+    // TrackServiceImpl delete all
     @Override
     @Transactional
     public boolean deleteAllTracks() {
         try {
-            // Delete all HLS folders/files
-            for (Track track : trackRepository.findAll()) {
-                String playlistPath = track.getFilePath();
-                if (playlistPath != null) {
-                    Path playlist = Paths.get(playlistPath);
-                    Path dir = playlist.getParent();
-                    try {
-                        if (dir != null && Files.exists(dir)) {
-                            Files.list(dir).forEach(p -> {
-                                try { Files.deleteIfExists(p); } catch (IOException ignored) {}
-                            });
-                            Files.deleteIfExists(dir);
-                        } else {
-                            Files.deleteIfExists(playlist);
-                        }
-                    } catch (IOException ignored) {}
-                }
-            }
+            for (Track t : trackRepository.findAll()) deleteHlsTree(t.getFilePath());
 
             trackRepository.deleteAllInBatch();
             artworkRepository.deleteAllInBatch();
             albumRepository.deleteAllInBatch();
             artistRepository.deleteAllInBatch();
-
             return trackRepository.count() == 0 && albumRepository.count() == 0;
         } catch (Exception e) {
             System.err.println("Error during deleteAllTracks: " + e.getMessage());
             return false;
         }
     }
+
+    // helper in TrackServiceImpl
+    private void deleteHlsTree(String playlistPath) {
+        if (playlistPath == null) return;
+        Path playlist = Paths.get(playlistPath);
+        Path dir = playlist.getParent();
+        Path root = (dir != null ? dir : playlist);
+
+        if (!Files.exists(root)) return;
+
+        try (var walk = Files.walk(root)) {
+            walk.sorted(java.util.Comparator.reverseOrder()) // delete files, then dir
+                    .forEach(p -> {
+                        try { Files.deleteIfExists(p); }
+                        catch (IOException e) { System.err.println("Delete failed: " + p + " -> " + e.getMessage()); }
+                    });
+        } catch (IOException e) {
+            System.err.println("Error walking HLS tree: " + e.getMessage());
+        }
+    }
+
 
     @Override
     public String getTrackFilePath(long fileHash) {

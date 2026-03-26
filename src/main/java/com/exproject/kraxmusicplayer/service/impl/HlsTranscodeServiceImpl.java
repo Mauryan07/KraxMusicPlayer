@@ -1,7 +1,9 @@
 package com.exproject.kraxmusicplayer.service.impl;
 
+import com.exproject.kraxmusicplayer.repository.TrackRepository;
 import com.exproject.kraxmusicplayer.service.HlsTranscodeService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,7 @@ import java.nio.file.Path;
 public class HlsTranscodeServiceImpl implements HlsTranscodeService {
 
     private static final String PLAYLIST = "playlist.m3u8";
+    private static String bitrate;
 
     @Value("${ffmpeg.binary:ffmpeg}")
     private String ffmpegBinary;
@@ -23,9 +26,17 @@ public class HlsTranscodeServiceImpl implements HlsTranscodeService {
     @Value("${ffmpeg.timeoutSeconds:300}")
     private int timeoutSeconds;
 
+    @Autowired
+    TrackRepository  trackRepository;
+
+
+
     @Override
-    public Path transcodeToHls(Path sourceFile, Path targetDir) {
+    public Path transcodeToHls(Path sourceFile, Path targetDir, String bitrate) {
         try {
+
+            if (bitrate == null) bitrate = "128";
+            HlsTranscodeServiceImpl.bitrate = bitrate+"k";
             Files.createDirectories(targetDir);
             Path playlistPath = targetDir.resolve(PLAYLIST);
             Process p = getProcess(sourceFile, targetDir, playlistPath);
@@ -34,9 +45,9 @@ public class HlsTranscodeServiceImpl implements HlsTranscodeService {
             new Thread(() -> {
                 try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                     String line;
-                    while ((line = r.readLine()) != null) {
-                        System.out.println("[ffmpeg] " + line);
-                    }
+//                    while ((line = r.readLine()) != null) {
+//                        System.out.println("[ffmpeg] " + line);
+//                    }
                 } catch (Exception ignored) {
                 }
             }).start();
@@ -68,7 +79,7 @@ public class HlsTranscodeServiceImpl implements HlsTranscodeService {
                 "-i", sourceFile.toAbsolutePath().toString(),
                 "-vn",
                 "-ac", "2", "-ar", "48000",
-                "-c:a", "aac", "-b:a", "320k",
+                "-c:a", "aac", "-b:a", bitrate,
                 "-hls_time", "5",
                 "-hls_flags", "split_by_time+independent_segments",
                 "-hls_segment_type", "mpegts",

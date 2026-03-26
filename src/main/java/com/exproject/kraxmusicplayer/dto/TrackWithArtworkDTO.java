@@ -16,4 +16,6 @@ public class TrackWithArtworkDTO {
     private String filePath;
     private byte[] imageData;
     private String mimeType;
+    private String year;
+
 }

@@ -85,7 +85,7 @@ public class HomeController {
     private HomeTrackDTO toHomeTrackDTO(com.exproject.kraxmusicplayer.dto.TrackDTO t, String baseUrl) {
         String audioUrl = String.format("%s/api/track/%s/audio", baseUrl, t.getFileHash());
         String artworkUrl = String.format("%s/api/track/%s/artwork", baseUrl, t.getFileHash());
-        return new HomeTrackDTO(t.getFileHash(), t.getTitle(), t.getDuration(), t.getBitrate(), audioUrl, artworkUrl);
+        return new HomeTrackDTO(t.getFileHash(), t.getTitle(), t.getDuration(), t.getBitrate(), t.getYear(), audioUrl, artworkUrl);
     }
 
     // Helper: map AlbumDTO -> HomeAlbumDTO. Use first track's fileHash (if exists) for artwork URL.
@@ -103,6 +103,7 @@ public class HomeController {
             sampleTracks = a.getTracks().stream()
                     .limit(3)
                     .map(t -> new HomeTrackDTO(t.getFileHash(), t.getTitle(), t.getDuration(), t.getBitrate(),
+                            t.getYear(),
                             String.format("%s/api/track/%s/audio", baseUrl, t.getFileHash()),
                             String.format("%s/api/track/%s/artwork", baseUrl, t.getFileHash())))
                     .collect(Collectors.toList());
