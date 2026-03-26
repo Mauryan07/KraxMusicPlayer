@@ -16,6 +16,7 @@ public class AdminController {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
 
+
     // Only admin can promote another user
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/promote/{userId}")

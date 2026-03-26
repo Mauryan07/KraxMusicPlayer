@@ -28,23 +28,7 @@ public class HlsTranscodeServiceImpl implements HlsTranscodeService {
         try {
             Files.createDirectories(targetDir);
             Path playlistPath = targetDir.resolve(PLAYLIST);
-            Path segmentPattern = targetDir.resolve("segment_%03d.ts");
-
-            ProcessBuilder pb = new ProcessBuilder(
-                    ffmpegBinary, "-y",
-                    "-i", sourceFile.toAbsolutePath().toString(),
-                    "-vn",
-                    "-ac", "2", "-ar", "48000",
-                    "-c:a", "aac", "-b:a", "80k",
-                    "-hls_time", "5",
-                    "-hls_flags", "split_by_time+independent_segments",
-                    "-hls_segment_type", "mpegts",
-                    "-hls_playlist_type", "vod",
-                    "-hls_segment_filename", segmentPattern.toString(),
-                    playlistPath.toString()
-            );
-            pb.redirectErrorStream(true);
-            Process p = pb.start();
+            Process p = getProcess(sourceFile, targetDir, playlistPath);
 
             // Log ffmpeg output to avoid buffer blocking
             new Thread(() -> {
@@ -66,7 +50,6 @@ public class HlsTranscodeServiceImpl implements HlsTranscodeService {
             boolean ok = exit == 0 &&
                     Files.exists(playlistPath) &&
                     Files.list(targetDir).anyMatch(f -> f.getFileName().toString().startsWith("segment_"));
-
             if (!ok) {
                 throw new IllegalStateException("HLS generation failed, exit=" + exit);
             }
@@ -75,5 +58,25 @@ public class HlsTranscodeServiceImpl implements HlsTranscodeService {
             Thread.currentThread().interrupt();
             throw new RuntimeException("HLS transcode failed: " + e.getMessage(), e);
         }
+    }
+
+    private Process getProcess(Path sourceFile, Path targetDir, Path playlistPath) throws IOException {
+        Path segmentPattern = targetDir.resolve("segment_%03d.ts");
+
+        ProcessBuilder pb = new ProcessBuilder(
+                ffmpegBinary, "-y",
+                "-i", sourceFile.toAbsolutePath().toString(),
+                "-vn",
+                "-ac", "2", "-ar", "48000",
+                "-c:a", "aac", "-b:a", "320k",
+                "-hls_time", "5",
+                "-hls_flags", "split_by_time+independent_segments",
+                "-hls_segment_type", "mpegts",
+                "-hls_playlist_type", "vod",
+                "-hls_segment_filename", segmentPattern.toString(),
+                playlistPath.toString()
+        );
+        pb.redirectErrorStream(true);
+        return pb.start();
     }
 }
