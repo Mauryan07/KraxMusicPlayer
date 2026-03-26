@@ -8,5 +8,5 @@ import java.util.List;
 public interface StorageService {
     void store(List<MultipartFile> file);
 
-    void processTrack(Path path); // New method
+    Path processTrack(Path path); // New method
 }
