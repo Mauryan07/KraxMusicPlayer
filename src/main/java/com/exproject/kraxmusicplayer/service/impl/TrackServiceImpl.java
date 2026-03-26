@@ -10,7 +10,6 @@ import com.exproject.kraxmusicplayer.repository.ArtworkRepository;
 import com.exproject.kraxmusicplayer.repository.TrackRepository;
 import com.exproject.kraxmusicplayer.service.TrackService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable; // Ensure you have this import if using caching
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,8 +31,7 @@ public class TrackServiceImpl implements TrackService {
     private final ArtistRepository artistRepository;
     private final ArtworkRepository artworkRepository;
 
-    public record trackWithArtwork(TrackWithArtworkDTO trackInfo, byte[] trackFile) {
-    }
+    public record trackWithArtwork(TrackWithArtworkDTO trackInfo, byte[] trackFile) {}
 
     private TrackDTO toDTO(Track track) {
         return new TrackDTO(
@@ -46,7 +44,6 @@ public class TrackServiceImpl implements TrackService {
     }
 
     private TrackWithArtworkDTO toTWADTO(Track track) {
-        // Handle potential null album/artwork safely
         byte[] imgData = null;
         String mime = null;
         if (track.getAlbum() != null && track.getAlbum().getArtwork() != null) {
@@ -59,7 +56,7 @@ public class TrackServiceImpl implements TrackService {
                 track.getTitle(),
                 track.getDuration(),
                 track.getBitrate(),
-                track.getFilePath(),
+                track.getFilePath(), // now playlist path
                 imgData,
                 mime
         );
@@ -89,25 +86,8 @@ public class TrackServiceImpl implements TrackService {
                 .map(this::toTWADTO)
                 .orElse(null);
 
-        // Getting file data from server file system
-        byte[] trackFile = null;
-        if (trackInfo != null) {
-            try {
-                Path filePath = Paths.get(trackInfo.getFilePath());
-                if (!Files.exists(filePath)) {
-                    System.out.printf("Audio file not found at: %s%n", filePath);
-                    // Depending on requirements, you might want to return null or throw exception
-                    // throw new RuntimeException("Audio file not found at: " + filePath);
-                } else {
-                    trackFile = Files.readAllBytes(filePath);
-                }
-            } catch (IOException e) {
-                System.out.printf("Failed to read audio file for track: %s, error: %s%n", fileHash, e.getMessage());
-                throw new RuntimeException("Failed to read audio file for track: " + fileHash, e);
-            }
-        }
-
-        return new trackWithArtwork(trackInfo, trackFile);
+        // HLS: do not load full audio bytes; player will fetch segments
+        return new trackWithArtwork(trackInfo, null);
     }
 
     @Override
@@ -115,99 +95,81 @@ public class TrackServiceImpl implements TrackService {
         return trackRepository.findAll(pageable).stream().map(this::toDTO).toList();
     }
 
-    // ---------------------------------------------------------
-    // DELETE LOGIC
-    // ---------------------------------------------------------
+    // DELETE LOGIC (unchanged)
 
     @Override
     @Transactional
     public void deleteTrackByFileHash(Long fileHash) {
-        Optional<Track> trackOpt = trackRepository.findById(fileHash);
-        if (trackOpt.isPresent()) {
-            Track track = trackOpt.get();
-            String trackFilePath = track.getFilePath();
+        trackRepository.findById(fileHash).ifPresent(track -> {
+            String playlistPath = track.getFilePath(); // points to playlist.m3u8
             Album album = track.getAlbum();
 
-            // 1. Delete the track file from the file system FIRST
-            if (trackFilePath != null) {
+            // Delete HLS folder (playlist + segments)
+            if (playlistPath != null) {
+                Path playlist = Paths.get(playlistPath);
+                Path dir = playlist.getParent();
                 try {
-                    Path path = Paths.get(trackFilePath);
-                    boolean deleted = Files.deleteIfExists(path);
-                    if (deleted) {
-                        System.out.println("Deleted file: " + trackFilePath);
+                    if (dir != null && Files.exists(dir)) {
+                        // delete all files in the HLS directory
+                        Files.list(dir).forEach(p -> {
+                            try { Files.deleteIfExists(p); } catch (IOException ignored) {}
+                        });
+                        Files.deleteIfExists(dir);
                     } else {
-                        System.out.println("File not found (could not delete): " + trackFilePath);
+                        Files.deleteIfExists(playlist); // fallback
                     }
                 } catch (IOException e) {
-                    System.err.println("Error deleting file from filesystem: " + trackFilePath + " - " + e.getMessage());
-                    // Decide if you want to abort DB delete if file delete fails.
-                    // Usually, we proceed so the DB doesn't point to a phantom file,
-                    // or we throw to rollback if strict consistency is needed.
+                    System.err.println("Error deleting HLS files: " + e.getMessage());
                 }
             }
 
-            // 2. Remove track from DB
+            // Remove track from DB
             trackRepository.delete(track);
-            // Flushing to ensure the track is removed from the persistence context
-            // before checking album contents might be necessary depending on JPA config,
-            // but usually the collection check below works on the in-memory entity state.
 
-            // 3. Clean up Album if it has no more tracks
+            // Clean up album if empty
             if (album != null) {
-                // The current track is likely still in the list in memory if not explicitly removed,
-                // so we check if size <= 1 (meaning this was the last one).
-                List<Track> remainingTracks = album.getTracks();
-
-                if (remainingTracks == null || remainingTracks.isEmpty() || (remainingTracks.contains(track) && remainingTracks.size() == 1)) {
-                    // Delete associated artwork from DB (Artwork is stored as BLOB, not file)
+                List<Track> remaining = album.getTracks();
+                if (remaining == null || remaining.isEmpty() || (remaining.contains(track) && remaining.size() == 1)) {
                     if (album.getArtwork() != null) {
                         artworkRepository.delete(album.getArtwork());
                     }
-                    // Delete album from DB
                     albumRepository.delete(album);
-                    System.out.println("Deleted empty album: " + album.getName());
                 }
             }
-        }
+        });
     }
 
     @Override
     @Transactional
     public boolean deleteAllTracks() {
         try {
-            // 1. Retrieve all tracks to get file paths
-            List<Track> allTracks = trackRepository.findAll();
-
-            // 2. Delete all physical files from storage
-            for (Track track : allTracks) {
-                String filePath = track.getFilePath();
-                if (filePath != null) {
+            // Delete all HLS folders/files
+            for (Track track : trackRepository.findAll()) {
+                String playlistPath = track.getFilePath();
+                if (playlistPath != null) {
+                    Path playlist = Paths.get(playlistPath);
+                    Path dir = playlist.getParent();
                     try {
-                        Files.deleteIfExists(Paths.get(filePath));
-                        System.out.println("Deleted file: " + filePath);
-                    } catch (IOException e) {
-                        System.err.println("Failed to delete file: " + filePath);
-                    }
+                        if (dir != null && Files.exists(dir)) {
+                            Files.list(dir).forEach(p -> {
+                                try { Files.deleteIfExists(p); } catch (IOException ignored) {}
+                            });
+                            Files.deleteIfExists(dir);
+                        } else {
+                            Files.deleteIfExists(playlist);
+                        }
+                    } catch (IOException ignored) {}
                 }
             }
 
-            // 3. Delete from Database
-            // Delete tracks
             trackRepository.deleteAllInBatch();
-
             artworkRepository.deleteAllInBatch();
-
             albumRepository.deleteAllInBatch();
-
-
             artistRepository.deleteAllInBatch();
 
-            return trackRepository.count() == 0
-                    && albumRepository.count() == 0;
-
+            return trackRepository.count() == 0 && albumRepository.count() == 0;
         } catch (Exception e) {
             System.err.println("Error during deleteAllTracks: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }

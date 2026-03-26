@@ -8,6 +8,7 @@ import com.exproject.kraxmusicplayer.repository.AlbumRepository;
 import com.exproject.kraxmusicplayer.repository.ArtistRepository;
 import com.exproject.kraxmusicplayer.repository.ArtworkRepository;
 import com.exproject.kraxmusicplayer.repository.TrackRepository;
+import com.exproject.kraxmusicplayer.service.HlsTranscodeService;
 import com.exproject.kraxmusicplayer.service.StorageService;
 import jakarta.annotation.PostConstruct;
 import jakarta.transaction.Transactional;
@@ -29,6 +30,10 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -37,15 +42,22 @@ public class StorageServiceImpl implements StorageService {
     @Value("${track.storage.location}")
     private String storagePath;
 
+    @Value("${ffmpeg.timeoutSeconds:300}")
+    private int timeoutSeconds;
+
     private final TrackRepository trackRepository;
     private final AlbumRepository albumRepository;
     private final ArtistRepository artistRepository;
     private final ArtworkRepository artworkRepository;
+    private final HlsTranscodeService hlsTranscodeService;
 
     private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(".mp3", ".m4a");
     private static final Set<String> SUPPORTED_MIME_TYPES = Set.of(
             "audio/mpeg", "audio/mp3", "audio/m4a", "audio/x-m4a", "audio/mp4", "audio/aac", "video/mp4"
     );
+
+    // Executor to avoid blocking HTTP threads during ffmpeg
+    private final ExecutorService hlsExecutor = Executors.newSingleThreadExecutor();
 
     @PostConstruct
     public void init() throws IOException {
@@ -71,8 +83,8 @@ public class StorageServiceImpl implements StorageService {
                 Path destination = Paths.get(storagePath, originalFileName);
                 Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
 
-                // Reuse the processing logic
-                processAudioFile(destination);
+                // Process + transcode (synchronous with timeout to keep response bounded)
+                processTrack(destination);
 
             } catch (Exception e) {
                 System.err.println("Failed to store file: " + file.getOriginalFilename() + " - " + e.getMessage());
@@ -82,65 +94,62 @@ public class StorageServiceImpl implements StorageService {
 
     @Override
     @Transactional
-    public void processTrack(Path path) {
-        // Wrapper for the scanner to call
-        processAudioFile(path);
+    public Path processTrack(Path path) {
+        return processAudioFile(path);
     }
 
     /**
-     * Core logic to read metadata and save entities to DB.
+     * Core logic to read metadata, save entities to DB, transcode to HLS, and delete source.
      */
-    private void processAudioFile(Path path) {
+    private Path processAudioFile(Path path) {
         try {
             String fileName = path.getFileName().toString();
             AudioFile audioFile = AudioFileIO.read(path.toFile());
-
-            if (audioFile == null) return;
+            if (audioFile == null) return null;
 
             AudioHeader audioHeader = audioFile.getAudioHeader();
             Tag tag = audioFile.getTag();
+            if (audioHeader == null) return null;
 
-            if (audioHeader == null) return;
-
-            // Extract metadata
+            // Metadata
             String title = getFileNameWithoutExtension(fileName);
             String duration = formatDuration(audioHeader.getTrackLength());
             String bitrate = audioHeader.getBitRate();
             long hashCode = generateHashCode(fileName, audioHeader);
 
-            // Check if track already exists
             if (trackRepository.findByFileHash(hashCode).isPresent()) {
-                // System.out.println("Track already exists: " + fileName);
-                return;
+                return null; // already stored
             }
 
-            // Extract Artist
-            String artistName = "Unknown Artist";
+            // Artist
+            String artistName;
             if (tag != null) {
                 String rawArtistName = tag.getFirst(FieldKey.ARTIST);
-                if (rawArtistName != null && !rawArtistName.isBlank()) {
-                    artistName = rawArtistName;
+                if (rawArtistName != null && !rawArtistName.isBlank()) artistName = rawArtistName;
+                else {
+                    artistName = "Unknown Artist";
                 }
+            } else {
+                artistName = "Unknown Artist";
             }
-            Artist artist = artistRepository.findByNameIgnoreCase(artistName).orElse(null);
-            if (artist == null) {
-                artist = artistRepository.save(Artist.builder().name(artistName).build());
-            }
+            Artist artist = artistRepository.findByNameIgnoreCase(artistName).orElseGet(() ->
+                    artistRepository.save(Artist.builder().name(artistName).build()));
 
-            // Extract Album
-            String albumName = "Unknown Album";
+            // Album
+            String albumName;
             if (tag != null) {
                 String rawAlbumName = tag.getFirst(FieldKey.ALBUM);
-                if (rawAlbumName != null && !rawAlbumName.isBlank()) {
-                    albumName = rawAlbumName;
+                if (rawAlbumName != null && !rawAlbumName.isBlank()) albumName = rawAlbumName;
+                else {
+                    albumName = "Unknown Album";
                 }
+            } else {
+                albumName = "Unknown Album";
             }
-            Album album = albumRepository.findByNameIgnoreCase(albumName).orElse(null);
-            if (album == null) {
-                album = albumRepository.save(Album.builder().name(albumName).build());
-            }
+            Album album = albumRepository.findByNameIgnoreCase(albumName).orElseGet(() ->
+                    albumRepository.save(Album.builder().name(albumName).build()));
 
-            // Extract Artwork
+            // Artwork
             if (album.getArtwork() == null && tag != null) {
                 Artwork artwork = tag.getFirstArtwork();
                 if (artwork != null) {
@@ -159,26 +168,45 @@ public class StorageServiceImpl implements StorageService {
                 }
             }
 
-            // Save Track
+            // HLS target dir using title slug
+            String titleSlug = title.replaceAll("[^a-zA-Z0-9-_]+", "_");
+            Path targetDir = Paths.get(storagePath, titleSlug);
+
+            // Transcode to HLS asynchronously but wait with timeout to keep request bounded
+            Future<Path> fut = hlsExecutor.submit(() -> hlsTranscodeService.transcodeToHls(path, targetDir));
+            Path playlistPath;
+            try {
+                playlistPath = fut.get(timeoutSeconds, TimeUnit.SECONDS);
+            } catch (java.util.concurrent.TimeoutException te) {
+                fut.cancel(true);
+                throw new RuntimeException("FFmpeg timed out after " + timeoutSeconds + "s", te);
+            }
+
+            // Delete original source file after successful HLS generation
+            Files.deleteIfExists(path);
+
+            // Save Track with playlist path
             Track track = Track.builder()
                     .fileHash(hashCode)
                     .title(title)
                     .duration(duration)
                     .bitrate(bitrate)
-                    .filePath(path.toAbsolutePath().toString())
+                    .filePath(playlistPath.toAbsolutePath().toString()) // store playlist
                     .artist(artist)
                     .album(album)
                     .build();
 
             trackRepository.save(track);
-            System.out.println("Processed track: " + title);
+            System.out.println("Processed track (HLS): " + title);
+            return playlistPath;
 
         } catch (Exception e) {
             System.err.println("Error processing file " + path + ": " + e.getMessage());
+            return null;
         }
     }
 
-    // Helper methods (Keep your existing helper methods below)
+    // Helpers
     private boolean isSupported(MultipartFile file) {
         String originalFileName = file.getOriginalFilename();
         String contentType = file.getContentType();

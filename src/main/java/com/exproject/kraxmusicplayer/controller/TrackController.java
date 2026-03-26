@@ -76,41 +76,96 @@ public class TrackController {
     }
 
 
-    // Sending specific track audio
-    @GetMapping("/track/{fileHash}/audio")
-    public void streamTrackAudio(@PathVariable String fileHash, HttpServletResponse response) {
+// Sending specific track audio
+
+//    @GetMapping("/track/{fileHash}/audio")
+//    public void streamTrackAudio(@PathVariable String fileHash, HttpServletResponse response) {
+//        try {
+//            long hash = Long.parseLong(fileHash);
+//
+//            TrackServiceImpl.trackWithArtwork track = trackService.getTrackByFileHash(hash);
+//            if (track == null || track.trackFile() == null) {
+//                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+//                return;
+//            }
+//
+//            // Determine content type based on file extension
+//            String filePath = trackService.getTrackFilePath(hash);
+//            String contentType = "audio/mpeg"; // Default to MP3
+//
+//            if (filePath != null) {
+//                if (filePath.toLowerCase().endsWith(".m4a")) {
+//                    contentType = "audio/mp4";
+//                } else if (filePath.toLowerCase().endsWith(".mp3")) {
+//                    contentType = "audio/mpeg";
+//                }
+//            }
+//
+//            response.setContentType(contentType);
+//            response.setHeader("Content-Disposition", "inline; filename=\"track\"");
+//            response.setContentLength(track.trackFile().length);
+//
+//            response.getOutputStream().write(track.trackFile());
+//            response.getOutputStream().flush();
+//        } catch (NumberFormatException e) {
+//            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+//        } catch (IOException e) {
+//            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+//        } catch (Exception e) {
+//            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+//        }
+//    }
+    // Sending specific track audio in HLS Segments
+@GetMapping("/track/{fileHash}/playlist")
+public void streamPlaylist(@PathVariable String fileHash, HttpServletResponse response) {
+    try {
+        long hash = Long.parseLong(fileHash);
+        String playlistPath = trackService.getTrackFilePath(hash);
+        if (playlistPath == null) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        Path p = Paths.get(playlistPath).toAbsolutePath().normalize();
+        if (!Files.exists(p)) {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        response.setContentType("application/vnd.apple.mpegurl");
+        response.setHeader("Content-Disposition", "inline; filename=\"playlist.m3u8\"");
+        response.setContentLengthLong(Files.size(p));
+        try (var in = Files.newInputStream(p)) {
+            in.transferTo(response.getOutputStream());
+        }
+        response.flushBuffer();
+    } catch (Exception e) {
+        e.printStackTrace();
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+}
+
+    @GetMapping("/track/{fileHash}/{name:.+}")
+    public void streamSegment(@PathVariable String fileHash,
+                              @PathVariable String name,
+                              HttpServletResponse response) {
         try {
             long hash = Long.parseLong(fileHash);
+            String playlistPath = trackService.getTrackFilePath(hash);
+            if (playlistPath == null) { response.setStatus(HttpServletResponse.SC_NOT_FOUND); return; }
 
-            TrackServiceImpl.trackWithArtwork track = trackService.getTrackByFileHash(hash);
-            if (track == null || track.trackFile() == null) {
+            Path segPath = Paths.get(playlistPath).toAbsolutePath().normalize()
+                    .getParent().resolve(name).normalize();
+            if (!Files.exists(segPath) || !segPath.getFileName().toString().equals(name)) {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
 
-            // Determine content type based on file extension
-            String filePath = trackService.getTrackFilePath(hash);
-            String contentType = "audio/mpeg"; // Default to MP3
-
-            if (filePath != null) {
-                if (filePath.toLowerCase().endsWith(".m4a")) {
-                    contentType = "audio/mp4";
-                } else if (filePath.toLowerCase().endsWith(".mp3")) {
-                    contentType = "audio/mpeg";
-                }
-            }
-
-            response.setContentType(contentType);
-            response.setHeader("Content-Disposition", "inline; filename=\"track\"");
-            response.setContentLength(track.trackFile().length);
-
-            response.getOutputStream().write(track.trackFile());
-            response.getOutputStream().flush();
-        } catch (NumberFormatException e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        } catch (IOException e) {
-            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            response.setContentType("video/mp2t");
+            response.setHeader("Cache-Control", "public, max-age=86400");
+            response.setContentLengthLong(Files.size(segPath));
+            try (var in = Files.newInputStream(segPath)) { in.transferTo(response.getOutputStream()); }
+            response.flushBuffer();
         } catch (Exception e) {
+            e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
@@ -189,8 +244,8 @@ public class TrackController {
     }
 
     private boolean isSupportedFile(Path path) {
-        String fileName = path.getFileName().toString().toLowerCase();
-        return SUPPORTED_EXTENSIONS.stream().anyMatch(fileName::endsWith);
+        String f = path.getFileName().toString().toLowerCase();
+        return SUPPORTED_EXTENSIONS.stream().anyMatch(f::endsWith); // HLS outputs are skipped automatically
     }
 
 
@@ -221,7 +276,7 @@ public class TrackController {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
-    @DeleteMapping("/track/deleteAll")
+        @DeleteMapping("/track/deleteAll")
     public ResponseEntity<ResponseMessage> deleteAllTracks() {
         boolean status = trackService.deleteAllTracks();
 
