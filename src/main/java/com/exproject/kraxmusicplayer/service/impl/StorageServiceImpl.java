@@ -122,7 +122,7 @@ public class StorageServiceImpl implements StorageService {
             if (rawYear != null && rawYear.length() >= 4) {
                 year = rawYear.substring(0, 4);
             }
-            System.out.println("year: " + year);
+//            System.out.println("year: " + year);
             long hashCode = Math.abs(generateHashCode(fileName, audioHeader));
 
             if (trackRepository.findByFileHash(hashCode).isPresent()) {
