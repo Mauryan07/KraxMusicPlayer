@@ -15,35 +15,30 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // IMPORTANT: Use addAllowedOriginPattern, NOT setAllowedOrigins
+        // Allowed origins (pattern-based for dev nets)
         config.addAllowedOriginPattern("http://localhost:*");
         config.addAllowedOriginPattern("http://127.0.0.1:*");
-        config.addAllowedOriginPattern("http://192.168.*.*: *");
+        config.addAllowedOriginPattern("http://192.168.*.*:*");
         config.addAllowedOriginPattern("http://10.*.*.*:*");
         config.addAllowedOriginPattern("http://172.*.*.*:*");
 
-        // Allow all methods
-        config.addAllowedMethod("*");
-
-        // Allow all headers
-        config.addAllowedHeader("*");
-
-        // Allow credentials
+        config.addAllowedMethod("*");   // all methods
+        config.addAllowedHeader("*");   // all headers (includes Origin, Range, Accept)
         config.setAllowCredentials(true);
 
-        // Exposed headers
+        // Expose headers useful for media/HLS
         config.setExposedHeaders(Arrays.asList(
                 "Authorization",
                 "Content-Type",
-                "Content-Disposition"
+                "Content-Disposition",
+                "Accept-Ranges",
+                "Content-Range"
         ));
 
-        // Max age
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-
         return source;
     }
 }

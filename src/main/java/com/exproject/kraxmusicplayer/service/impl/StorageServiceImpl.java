@@ -19,6 +19,7 @@ import org.jaudiotagger.audio.AudioHeader;
 import org.jaudiotagger.tag.FieldKey;
 import org.jaudiotagger.tag.Tag;
 import org.jaudiotagger.tag.images.Artwork;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,10 +31,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +42,9 @@ public class StorageServiceImpl implements StorageService {
 
     @Value("${ffmpeg.timeoutSeconds:300}")
     private int timeoutSeconds;
+
+    @Autowired
+    TranscodeJobTracker transcodeJobTracker;
 
     private final TrackRepository trackRepository;
     private final AlbumRepository albumRepository;
@@ -181,11 +182,20 @@ public class StorageServiceImpl implements StorageService {
             Path targetDir = Paths.get(storagePath, titleSlug);
 
             // Transcode to HLS asynchronously but wait with timeout to keep request bounded
-            Future<Path> fut = hlsExecutor.submit(() -> hlsTranscodeService.transcodeToHls(path, targetDir, bitrate));
+
+            transcodeJobTracker.jobStarted();
+            Future<Path> fut = hlsExecutor.submit(() -> {
+                try {
+                    return hlsTranscodeService.transcodeToHls(path, targetDir, bitrate);
+                } finally {
+                    transcodeJobTracker.jobFinished();
+                }
+            });
+
             Path playlistPath;
             try {
                 playlistPath = fut.get(timeoutSeconds, TimeUnit.SECONDS);
-            } catch (java.util.concurrent.TimeoutException te) {
+            } catch (TimeoutException te) {
                 fut.cancel(true);
                 throw new RuntimeException("FFmpeg timed out after " + timeoutSeconds + "s", te);
             }

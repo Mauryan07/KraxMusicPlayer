@@ -1,9 +1,11 @@
 package com.exproject.kraxmusicplayer.controller;
 
+import com.exproject.kraxmusicplayer.dto.AdminMetricsDTO;
 import com.exproject.kraxmusicplayer.model.Role;
 import com.exproject.kraxmusicplayer.model.User;
 import com.exproject.kraxmusicplayer.repository.RoleRepository;
 import com.exproject.kraxmusicplayer.repository.UserRepository;
+import com.exproject.kraxmusicplayer.service.AdminMetricsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final AdminMetricsService adminMetricsService;
 
 
     // Only admin can promote another user
@@ -26,5 +29,11 @@ public class AdminController {
         user.getRoles().add(adminRole);
         userRepository.save(user);
         return "User promoted to admin";
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/metrics")
+    public AdminMetricsDTO metrics() {
+        return adminMetricsService.getMetrics();
     }
 }
